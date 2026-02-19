@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Location Check-in</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 16px; max-width: 600px; margin: auto; }
+    button { padding: 10px 14px; font-size: 16px; }
+    .box { padding: 12px; border: 1px solid #ddd; border-radius: 10px; margin-top: 12px; }
+    .bad { color: #b00020; }
+    .ok { color: #0a7a0a; }
+    input { width: 100%; padding: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Location Check-in</h2>
+
+  <div class="box">
+    <div><b>Step 1</b> Tap Get my location and allow permission.</div>
+    <button id="btnGet">Get my location</button>
+    <div id="msg" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="box">
+    <div><b>Step 2</b> If you are within the allowed area, Submit will unlock.</div>
+    <div>Location ID: <span id="locId"></span></div>
+    <div>Distance: <span id="dist"></span></div>
+    <div>Map: <a id="mapLink" href="#" target="_blank" rel="noopener">Open map</a></div>
+
+    <div style="margin-top:12px;">
+      <button id="btnSubmit" disabled>Submit</button>
+    </div>
+    <div id="submitMsg" style="margin-top:10px;"></div>
+  </div>
+
+<script>
+  // 1) PUT YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
+  const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbxQjKpI6yU8MAIIucieL-aa63jZ0BeJIIpwO-_PFR7F2bhfR3ZADN3JziissVWDmJXu/exec";
+
+  // 2) BACKEND LOCATIONS (lat, lng, radius in metres)
+  // Add more sites by copying another block.
+  const LOCATIONS = {
+    siteA: { lat: 8.457831, lng: 4.570773, radius_m: 50 }
+  };
+
+  // Get loc id from QR URL like ?loc=siteA
+  const params = new URLSearchParams(window.location.search);
+  const loc_id = params.get("loc") || "siteA";
+  document.getElementById("locId").textContent = loc_id;
+
+  const backend = LOCATIONS[loc_id];
+  const msg = document.getElementById("msg");
+  const distEl = document.getElementById("dist");
+  const submitBtn = document.getElementById("btnSubmit");
+  const mapLink = document.getElementById("mapLink");
+
+  let device_lat = null, device_lng = null, distance_m = null;
+
+  function toRad(x){ return x * Math.PI / 180; }
+
+  function haversineMeters(lat1, lon1, lat2, lon2){
+    const R = 6371000;
+    const dLat = toRad(lat2-lat1);
+    const dLon = toRad(lon2-lon1);
+    const a =
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return Math.round(R * c);
+  }
+
+  function setStatus(text, ok){
+    msg.innerHTML = ok ? `<span class="ok">${text}</span>` : `<span class="bad">${text}</span>`;
+  }
+
+  document.getElementById("btnGet").addEventListener("click", () => {
+    if (!backend){
+      setStatus("This QR location ID is not set in backend. Fix LOCATIONS list.", false);
+      return;
+    }
+
+    if (!navigator.geolocation){
+      setStatus("Geolocation is not supported on this device/browser.", false);
+      return;
+    }
+
+    setStatus("Requesting location permission…", true);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        device_lat = pos.coords.latitude;
+        device_lng = pos.coords.longitude;
+
+        distance_m = haversineMeters(device_lat, device_lng, backend.lat, backend.lng);
+
+        distEl.textContent = distance_m + " m";
+
+        mapLink.href = `https://www.openstreetmap.org/?mlat=${device_lat}&mlon=${device_lng}#map=18/${device_lat}/${device_lng}`;
+
+        if (distance_m <= backend.radius_m){
+          submitBtn.disabled = false;
+          setStatus("You are within the allowed area. You can submit now.", true);
+        } else {
+          submitBtn.disabled = true;
+          setStatus(`You are outside the allowed area. Move closer (allowed ${backend.radius_m} m).`, false);
+        }
+      },
+      (err) => {
+        submitBtn.disabled = true;
+        if (err.code === 1) setStatus("Permission denied. You must allow location to submit.", false);
+        else setStatus("Could not get location. Try going outdoors and tap again.", false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+
+  document.getElementById("btnSubmit").addEventListener("click", async () => {
+    const submitMsg = document.getElementById("submitMsg");
+
+    if (device_lat === null || device_lng === null){
+      submitMsg.innerHTML = `<span class="bad">Get your location first.</span>`;
+      return;
+    }
+
+    const payload = {
+      loc_id,
+      device_lat,
+      device_lng,
+      distance_m,
+      status: (distance_m <= backend.radius_m) ? "PASS" : "FAIL"
+    };
+
+    // Extra safety: block if fail
+    if (payload.status !== "PASS"){
+      submitMsg.innerHTML = `<span class="bad">Blocked. You are not within the allowed radius.</span>`;
+      return;
+    }
+
+    submitMsg.innerHTML = "Submitting…";
+
+    const res = await fetch(SUBMIT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    submitMsg.innerHTML = `<span class="ok">Submitted successfully.</span>`;
+  });
+</script>
+</body>
+</html>
