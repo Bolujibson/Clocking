@@ -36,7 +36,7 @@
 
 <script>
   // 1) PUT YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-  const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbxsJRG-iuKPT1HTK5N7xIWgs5I-aSCGy1KmnUuOoKIc9H247zoHfLs_iL8XdB66_ps/exec";
+  const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbzIKPkQKjlCj3GQ_GF78YvBjRcAeVAP1EE-HN7IZNlWvRD6dhdf2KYX6l5ssk9wwEml/exec";
 
   // 2) BACKEND LOCATIONS (lat, lng, radius in metres)
   // Add more sites by copying another block.
@@ -140,20 +140,15 @@
 
   
 
-    submitMsg.innerHTML = "Submitting…";
+submitMsg.innerHTML = "Submitting…";
 
-try {
-  const res = await fetch(SUBMIT_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+fetch(SUBMIT_URL, {
+  method: "POST",
+  mode: "no-cors",
+  body: JSON.stringify(payload)
+});
 
-  const text = await res.text();
-  submitMsg.innerHTML = `Done. Server said: ${text}`;
-} catch (err) {
-  submitMsg.innerHTML = `Failed: ${err}`;
-}  });
+submitMsg.innerHTML = "Submitted. Check the sheet in a few seconds.";  });
 </script>
 </body>
 </html>
