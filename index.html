@@ -15,7 +15,11 @@
 </head>
 <body>
   <h2>Location Check-in</h2>
-
+<div style="margin-top:10px;">
+  <input id="email" type="email" placeholder="Enter your email (work or Gmail)"
+    style="width: 320px; padding:10px; border:1px solid #ccc; border-radius:8px;" />
+</div>
+  
   <div class="box">
     <div><b>Step 1</b> Tap Get my location and allow permission.</div>
     <button id="btnGet">Get my location</button>
@@ -119,14 +123,28 @@
   document.getElementById("btnSubmit").addEventListener("click", async () => {
     const submitMsg = document.getElementById("submitMsg");
 
+    const email = document.getElementById("email").value.trim().toLowerCase();
+
+if (!email) {
+    submitMsg.innerHTML = '<span class="bad">Enter your email first.</span>';
+    return;
+}
+
+const okEmail = email.includes("@");
+if (!okEmail) {
+    submitMsg.innerHTML = '<span class="bad">Enter a valid email.</span>';
+    return;
+}
+
     if (device_lat === null || device_lng === null){
       submitMsg.innerHTML = `<span class="bad">Get your location first.</span>`;
       return;
     }
 
     const payload = {
-      loc_id,
-      device_lat,
+    email,
+    loc_id,
+    device_lat,
       device_lng,
       distance_m,
       status: (distance_m <= backend.radius_m) ? "PASS" : "FAIL"
