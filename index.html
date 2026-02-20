@@ -142,20 +142,24 @@ if (!okEmail) {
     }
 
     const payload = {
-    email,
-    loc_id,
-    device_lat,
-      device_lng,
-      distance_m,
-      status: (distance_m <= backend.radius_m) ? "PASS" : "FAIL"
-    };
+  email,
+  loc_id,
+  device_lat,
+  device_lng,
+  distance_m,
+  status: (distance_m <= backend.radius_m) ? "PASS" : "FAIL"
+};
 
-    // Extra safety: block if fail
-    if (payload.status !== "PASS"){
-      submitMsg.innerHTML = `<span class="bad">Blocked. You are not within the allowed radius.</span>`;
-      return;
-    }
+// ✅ Send as form data (avoids CORS preflight problems)
+const body = new URLSearchParams();
+body.append("payload", JSON.stringify(payload));
 
+fetch(SUBMIT_URL, {
+  method: "POST",
+  body
+});
+
+submitMsg.innerHTML = "Submitted. Check the sheet in a few seconds.";
   
 
 submitMsg.innerHTML = "Submitting…";
